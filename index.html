@@ -1,0 +1,1435 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Frame Board</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --white: #ffffff;
+      --off-white: #f9f9f9;
+      --gray-50: #f5f5f5;
+      --gray-100: #eeeeee;
+      --gray-200: #e0e0e0;
+      --gray-400: #aaaaaa;
+      --gray-600: #666666;
+      --gray-800: #222222;
+      --accent: #0F62FE;
+      --accent-soft: #e8f0ff;
+      --danger: #e8305a;
+      --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
+      --shadow-md: 0 8px 32px rgba(0,0,0,0.10);
+      --shadow-lg: 0 16px 48px rgba(0,0,0,0.14);
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --font: 'DM Sans', sans-serif;
+      --mono: 'DM Mono', monospace;
+    }
+
+    html, body {
+      width: 100%; height: 100%; overflow: hidden;
+      background: var(--white);
+      font-family: var(--font);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── CANVAS ── */
+    #canvas-container {
+      position: fixed; inset: 0;
+      background-color: #fafafa;
+      background-image:
+        radial-gradient(circle, #d8d8d8 1px, transparent 1px);
+      background-size: 28px 28px;
+      cursor: default;
+    }
+
+    canvas { position: absolute; top: 0; left: 0; }
+
+    /* ── HEADER ── */
+    #header {
+      position: fixed; top: 0; left: 0; right: 0;
+      height: 52px;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 20px;
+      background: rgba(255,255,255,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--gray-100);
+      z-index: 200;
+      pointer-events: all;
+    }
+
+    .header-left { display: flex; align-items: center; gap: 10px; }
+
+    .logo-mark {
+      width: 28px; height: 28px;
+      background: var(--gray-800);
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .logo-mark svg { width: 16px; height: 16px; fill: white; }
+
+    .board-title {
+      font-size: 14px; font-weight: 500;
+      color: var(--gray-800);
+      cursor: text;
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid transparent;
+      transition: border-color 0.15s;
+    }
+    .board-title:hover { border-color: var(--gray-200); }
+    .board-title:focus { outline: none; border-color: var(--accent); }
+
+    .header-right { display: flex; align-items: center; gap: 8px; }
+
+    .hbtn {
+      height: 32px; padding: 0 12px;
+      border: 1px solid var(--gray-200);
+      background: white;
+      border-radius: var(--radius-sm);
+      font-family: var(--font);
+      font-size: 12px; font-weight: 500;
+      color: var(--gray-600);
+      cursor: pointer;
+      display: flex; align-items: center; gap: 6px;
+      transition: all 0.15s;
+    }
+    .hbtn:hover { background: var(--gray-50); color: var(--gray-800); }
+    .hbtn.primary { background: var(--gray-800); color: white; border-color: var(--gray-800); }
+    .hbtn.primary:hover { background: #111; }
+    .hbtn svg { width: 14px; height: 14px; fill: currentColor; }
+
+    /* ── TOOLBAR LATERAL IZQUIERDO ── */
+    #toolbar-left {
+      position: fixed; left: 20px; top: 50%; transform: translateY(-50%);
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--gray-100);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md);
+      padding: 8px 6px;
+      display: flex; flex-direction: column; gap: 2px;
+      z-index: 100;
+    }
+
+    .tool-btn {
+      width: 40px; height: 40px;
+      border: none; background: none;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--gray-600);
+      transition: all 0.15s;
+      position: relative;
+    }
+    .tool-btn:hover { background: var(--gray-50); color: var(--gray-800); }
+    .tool-btn.active { background: var(--accent-soft); color: var(--accent); }
+    .tool-btn svg { width: 18px; height: 18px; fill: currentColor; }
+
+    .tool-sep { width: 28px; height: 1px; background: var(--gray-100); margin: 4px auto; }
+
+    /* Tooltip */
+    .tool-btn::after {
+      content: attr(data-tip);
+      position: absolute; left: calc(100% + 10px); top: 50%; transform: translateY(-50%);
+      background: var(--gray-800); color: white;
+      font-family: var(--font); font-size: 11px; font-weight: 500;
+      padding: 4px 8px; border-radius: 5px;
+      white-space: nowrap;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.15s;
+    }
+    .tool-btn:hover::after { opacity: 1; }
+
+    /* ── TOOLBAR INFERIOR ── */
+    #toolbar-bottom {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--gray-100);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      padding: 8px 12px;
+      display: flex; align-items: center; gap: 4px;
+      z-index: 100;
+    }
+
+    .bot-btn {
+      height: 36px; padding: 0 10px;
+      border: none; background: none;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: flex; align-items: center; gap: 6px;
+      font-family: var(--font); font-size: 12px; font-weight: 500;
+      color: var(--gray-600);
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+    .bot-btn:hover { background: var(--gray-50); color: var(--gray-800); }
+    .bot-btn svg { width: 15px; height: 15px; fill: currentColor; }
+    .bot-btn.danger:hover { background: #fff0f3; color: var(--danger); }
+
+    .bot-sep { width: 1px; height: 24px; background: var(--gray-200); margin: 0 4px; }
+
+    /* ── ZOOM INDICATOR ── */
+    #zoom-indicator {
+      position: fixed; bottom: 28px; right: 24px;
+      display: flex; align-items: center; gap: 6px;
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--gray-100);
+      border-radius: var(--radius-sm);
+      box-shadow: var(--shadow-sm);
+      padding: 4px 10px;
+      z-index: 100;
+    }
+    .zoom-btn {
+      width: 24px; height: 24px; border: none; background: none;
+      cursor: pointer; border-radius: 4px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--gray-600); font-size: 16px; line-height: 1;
+      transition: background 0.15s;
+    }
+    .zoom-btn:hover { background: var(--gray-50); }
+    #zoom-label {
+      font-family: var(--mono); font-size: 11px;
+      color: var(--gray-600); min-width: 36px; text-align: center;
+    }
+
+    /* ── CONTEXT PANEL (propiedades del objeto seleccionado) ── */
+    #obj-panel {
+      position: fixed; right: 20px; top: 50%; transform: translateY(-50%);
+      background: rgba(255,255,255,0.97);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--gray-100);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md);
+      padding: 14px 14px;
+      width: 180px;
+      z-index: 100;
+      display: none;
+      flex-direction: column; gap: 8px;
+    }
+    #obj-panel.visible { display: flex; }
+
+    .panel-title {
+      font-size: 10px; font-weight: 500; letter-spacing: 0.08em;
+      color: var(--gray-400); text-transform: uppercase; margin-bottom: 4px;
+    }
+
+    .panel-row {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 8px;
+    }
+    .panel-label { font-size: 11px; color: var(--gray-600); }
+    .panel-val { font-family: var(--mono); font-size: 11px; color: var(--gray-800); }
+
+    .panel-btn {
+      width: 100%; height: 30px;
+      border: 1px solid var(--gray-200);
+      background: white; border-radius: 6px;
+      font-family: var(--font); font-size: 11px; font-weight: 500;
+      color: var(--gray-700); cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 5px;
+      transition: all 0.15s;
+    }
+    .panel-btn:hover { background: var(--gray-50); }
+    .panel-btn svg { width: 13px; height: 13px; fill: currentColor; }
+    .panel-btn.danger { color: var(--danger); border-color: #fcd0da; }
+    .panel-btn.danger:hover { background: #fff0f3; }
+
+    /* ── STICKY NOTE ── */
+    .sticky-fabric { cursor: move; }
+
+    /* ── UPLOAD DROP OVERLAY ── */
+    #drop-overlay {
+      position: fixed; inset: 52px 0 0 0;
+      background: rgba(15,98,254,0.05);
+      border: 2px dashed var(--accent);
+      border-radius: 0;
+      z-index: 50;
+      display: none;
+      align-items: center; justify-content: center;
+      flex-direction: column; gap: 12px;
+      pointer-events: none;
+    }
+    #drop-overlay.active { display: flex; }
+    #drop-overlay p { font-size: 18px; font-weight: 500; color: var(--accent); }
+    #drop-overlay svg { width: 40px; height: 40px; fill: var(--accent); }
+
+    /* ── TOAST ── */
+    #toast {
+      position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(20px);
+      background: var(--gray-800); color: white;
+      font-size: 12px; font-weight: 500;
+      padding: 8px 16px; border-radius: 20px;
+      z-index: 300; opacity: 0;
+      transition: all 0.25s;
+      pointer-events: none;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ── TEXT CURSOR ── */
+    .text-mode { cursor: text !important; }
+    .pan-mode { cursor: grab !important; }
+    .pan-mode:active { cursor: grabbing !important; }
+
+    /* ── STICKY COLOR DOTS ── */
+    .color-dot {
+      width: 18px; height: 18px;
+      border-radius: 50%; cursor: pointer;
+      border: 2px solid transparent;
+      transition: transform 0.15s, border-color 0.15s;
+    }
+    .color-dot:hover { transform: scale(1.2); }
+    .color-dot.selected { border-color: var(--gray-800); }
+
+    /* ── CONTEXT MENU ── */
+    #ctx-menu {
+      position: fixed; z-index: 500;
+      background: rgba(255,255,255,0.98);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--gray-100);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-lg);
+      padding: 6px;
+      min-width: 160px;
+      display: none;
+    }
+    #ctx-menu.open { display: block; }
+    .ctx-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 7px 10px;
+      border-radius: 6px;
+      font-size: 12px; font-weight: 500;
+      color: var(--gray-700);
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+    .ctx-item:hover { background: var(--gray-50); }
+    .ctx-item svg { width: 14px; height: 14px; fill: currentColor; }
+    .ctx-item.danger { color: var(--danger); }
+    .ctx-item.danger:hover { background: #fff0f3; }
+    .ctx-sep { height: 1px; background: var(--gray-100); margin: 4px 0; }
+
+    /* ── CROP MODAL ── */
+    #crop-modal {
+      position: fixed; inset: 0; z-index: 600;
+      background: rgba(0,0,0,0.7);
+      display: none; align-items: center; justify-content: center;
+      flex-direction: column; gap: 16px;
+    }
+    #crop-modal.open { display: flex; }
+
+    #crop-container {
+      position: relative;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.5);
+      cursor: crosshair;
+      user-select: none;
+    }
+
+    #crop-img {
+      display: block;
+      max-width: min(90vw, 900px);
+      max-height: min(75vh, 700px);
+      object-fit: contain;
+    }
+
+    #crop-selection {
+      position: absolute;
+      border: 2px solid #fff;
+      box-shadow: 0 0 0 9999px rgba(0,0,0,0.45);
+      pointer-events: none;
+    }
+
+    #crop-handles span {
+      position: absolute;
+      width: 10px; height: 10px;
+      background: white;
+      border-radius: 2px;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+
+    #crop-toolbar {
+      display: flex; align-items: center; gap: 10px;
+    }
+    .crop-btn {
+      height: 38px; padding: 0 20px;
+      border-radius: var(--radius-sm);
+      border: none; font-family: var(--font); font-size: 13px; font-weight: 500;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .crop-btn.confirm { background: white; color: var(--gray-800); }
+    .crop-btn.confirm:hover { background: var(--gray-50); }
+    .crop-btn.cancel { background: transparent; color: rgba(255,255,255,0.7); border: 1px solid rgba(255,255,255,0.25); }
+    .crop-btn.cancel:hover { color: white; border-color: rgba(255,255,255,0.6); }
+    .crop-hint { font-size: 12px; color: rgba(255,255,255,0.5); }
+
+  </style>
+</head>
+<body>
+
+<!-- CROP MODAL -->
+<div id="crop-modal">
+  <div id="crop-container">
+    <img id="crop-img" src="" alt="crop">
+    <div id="crop-selection" style="display:none;">
+      <div id="crop-handles">
+        <span id="ch-tl" style="top:0;left:0;"></span>
+        <span id="ch-tr" style="top:0;right:0;transform:translate(50%,-50%)"></span>
+        <span id="ch-bl" style="bottom:0;left:0;transform:translate(-50%,50%)"></span>
+        <span id="ch-br" style="bottom:0;right:0;transform:translate(50%,50%)"></span>
+        <span id="ch-tc" style="top:0;left:50%;"></span>
+        <span id="ch-bc" style="bottom:0;left:50%;transform:translate(-50%,50%)"></span>
+        <span id="ch-lc" style="top:50%;left:0;transform:translate(-50%,-50%)"></span>
+        <span id="ch-rc" style="top:50%;right:0;transform:translate(50%,-50%)"></span>
+      </div>
+    </div>
+  </div>
+  <div id="crop-toolbar">
+    <button class="crop-btn confirm" onclick="applyCrop()">✓ Aplicar recorte</button>
+    <button class="crop-btn cancel" onclick="closeCropModal()">Cancelar</button>
+    <span class="crop-hint">Arrastra para seleccionar el área</span>
+  </div>
+</div>
+
+<!-- DROP OVERLAY -->
+<div id="drop-overlay">
+  <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+  <p>Soltar imágenes aquí</p>
+</div>
+
+<!-- HEADER -->
+<header id="header">
+  <div class="header-left">
+    <div class="logo-mark">
+      <svg viewBox="0 0 24 24"><path d="M21 3H3C1.9 3 1 3.9 1 5v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14zm-10-7h8v5h-8z"/></svg>
+    </div>
+    <span class="board-title" contenteditable="true" id="board-title">Pizarra sin título</span>
+  </div>
+  <div class="header-right">
+    <button class="hbtn" onclick="exportPNG()">
+      <svg viewBox="0 0 24 24"><path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2v9.67z"/></svg>
+      Exportar
+    </button>
+    <button class="hbtn primary" onclick="document.getElementById('file-input').click()">
+      <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+      Añadir fotos
+    </button>
+  </div>
+</header>
+
+<!-- TOOLBAR IZQUIERDO -->
+<div id="toolbar-left">
+  <button class="tool-btn active" id="tool-select" data-tip="Seleccionar" onclick="setTool('select')">
+    <svg viewBox="0 0 24 24"><path d="M13.64 21.97C13.14 22.21 12.54 22 12.31 21.5L10.13 16.76L7.62 18.78C7.45 18.92 7.24 19 7 19C6.45 19 6 18.55 6 18V3C6 2.45 6.45 2 7 2C7.24 2 7.47 2.09 7.64 2.23L7.65 2.22L19.14 11.86C19.57 12.22 19.62 12.85 19.27 13.27C19.12 13.45 18.91 13.57 18.7 13.61L15.54 14.23L17.74 18.96C17.97 19.46 17.76 20.05 17.26 20.28L13.64 21.97Z"/></svg>
+  </button>
+  <button class="tool-btn" id="tool-pan" data-tip="Mover lienzo" onclick="setTool('pan')">
+    <svg viewBox="0 0 24 24"><path d="M23 5.5V20c0 2.2-1.8 4-4 4h-7.3c-1.08 0-2.1-.43-2.85-1.19L1 14.83s1.26-1.23 1.3-1.25c.22-.19.49-.29.79-.29.22 0 .42.06.6.16L7 15.46V4c0-.83.67-1.5 1.5-1.5S10 3.17 10 4v7.47l1.65.87A3.51 3.51 0 0 1 13 9c0-.83.67-1.5 1.5-1.5S16 8.17 16 9c0-.83.67-1.5 1.5-1.5S19 8.17 19 9c0-.83.67-1.5 1.5-1.5S23 8.67 23 9.5v-4z"/></svg>
+  </button>
+  <div class="tool-sep"></div>
+  <button class="tool-btn" id="tool-text" data-tip="Texto" onclick="setTool('text')">
+    <svg viewBox="0 0 24 24"><path d="M5 4v3h5.5v12h3V7H19V4z"/></svg>
+  </button>
+  <button class="tool-btn" id="tool-sticky" data-tip="Sticky note" onclick="addStickyNote()">
+    <svg viewBox="0 0 24 24"><path d="M19 3H4.99C3.89 3 3 3.9 3 5L3.01 19c0 1.1.89 2 1.99 2H15l6-6V5c0-1.1-.9-2-2-2zm-7 3c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2zM6 17c0-2 4-3.1 6-3.1S18 15 18 17v1H6v-1z"/></svg>
+  </button>
+  <div class="tool-sep"></div>
+  <button class="tool-btn" id="tool-draw" data-tip="Dibujo libre" onclick="setTool('draw')">
+    <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+  </button>
+  <div class="tool-sep"></div>
+  <button class="tool-btn" id="tool-crop" data-tip="Recortar imagen" onclick="startCrop()">
+    <svg viewBox="0 0 24 24"><path d="M17 15h2V7c0-1.1-.9-2-2-2H9v2h8v8zM7 17V1H5v4H1v2h4v10c0 1.1.9 2 2 2h10v4h2v-4h4v-2H7z"/></svg>
+  </button>
+</div>
+
+<!-- PANEL DE OBJETO SELECCIONADO -->
+<div id="obj-panel">
+  <div class="panel-title">Objeto</div>
+  <div class="panel-row">
+    <span class="panel-label">Ancho</span>
+    <span class="panel-val" id="panel-w">—</span>
+  </div>
+  <div class="panel-row">
+    <span class="panel-label">Alto</span>
+    <span class="panel-val" id="panel-h">—</span>
+  </div>
+  <div class="panel-row">
+    <span class="panel-label">Ángulo</span>
+    <span class="panel-val" id="panel-a">—</span>
+  </div>
+  <div style="height:4px;"></div>
+  <button class="panel-btn" onclick="rotateObj()">
+    <svg viewBox="0 0 24 24"><path d="M12 6v3l4-4-4-4v3c-4.42 0-8 3.58-8 8 0 1.57.46 3.03 1.24 4.26L6.7 14.8c-.45-.83-.7-1.79-.7-2.8 0-3.31 2.69-6 6-6zm6.76 1.74L17.3 9.2c.44.84.7 1.79.7 2.8 0 3.31-2.69 6-6 6v-3l-4 4 4 4v-3c4.42 0 8-3.58 8-8 0-1.57-.46-3.03-1.24-4.26z"/></svg>
+    Rotar 90°
+  </button>
+  <button class="panel-btn" onclick="flipObjX()">
+    <svg viewBox="0 0 24 24"><path d="M15 21h2v-2h-2v2zm4-12h2V7h-2v2zM3 5v14c0 1.1.9 2 2 2h4v-2H5V5h4V3H5c-1.1 0-2 .9-2 2zm16-2v2h2c0-1.1-.9-2-2-2zm-8 20h2V1h-2v22zm8-6h2v-2h-2v2zM15 5h2V3h-2v2zm4 8h2v-2h-2v2z"/></svg>
+    Voltear
+  </button>
+  <button class="panel-btn" onclick="bringToFront()">
+    <svg viewBox="0 0 24 24"><path d="M2 2h8v2H4v6H2zm12 0h8v8h-2V4h-6zM2 14h2v6h6v2H2zm18 0h2v8h-8v-2h6z"/></svg>
+    Al frente
+  </button>
+  <button class="panel-btn" id="panel-crop-btn" onclick="startCrop()">
+    <svg viewBox="0 0 24 24"><path d="M17 15h2V7c0-1.1-.9-2-2-2H9v2h8v8zM7 17V1H5v4H1v2h4v10c0 1.1.9 2 2 2h10v4h2v-4h4v-2H7z"/></svg>
+    Recortar
+  </button>
+  <button class="panel-btn danger" onclick="deleteSelected()">
+    <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+    Eliminar
+  </button>
+</div>
+
+<!-- TOOLBAR INFERIOR -->
+<div id="toolbar-bottom">
+  <button class="bot-btn" onclick="arrangeGrid()">
+    <svg viewBox="0 0 24 24"><path d="M3 3v8h8V3H3zm6 6H5V5h4v4zm-6 4v8h8v-8H3zm6 6H5v-4h4v4zm4-16v8h8V3h-8zm6 6h-4V5h4v4zm-6 4v8h8v-8h-8zm6 6h-4v-4h4v4z"/></svg>
+    Organizar en grilla
+  </button>
+  <div class="bot-sep"></div>
+  <button class="bot-btn" onclick="fitAll()">
+    <svg viewBox="0 0 24 24"><path d="M15 3l2.3 2.3-2.89 2.87 1.42 1.42L18.7 6.7 21 9V3zM3 9l2.3-2.3 2.87 2.89 1.42-1.42L6.7 5.3 9 3H3zm6 12l-2.3-2.3 2.89-2.87-1.42-1.42L5.3 17.3 3 15v6zm12-6l-2.3 2.3-2.87-2.89-1.42 1.42 2.89 2.87L15 21h6z"/></svg>
+    Ver todo
+  </button>
+  <div class="bot-sep"></div>
+  <button class="bot-btn danger" onclick="clearCanvas()">
+    <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+    Limpiar todo
+  </button>
+</div>
+
+<!-- ZOOM CONTROLS -->
+<div id="zoom-indicator">
+  <button class="zoom-btn" onclick="zoomStep(-0.25)">−</button>
+  <span id="zoom-label">100%</span>
+  <button class="zoom-btn" onclick="zoomStep(0.25)">+</button>
+</div>
+
+<!-- CONTEXT MENU -->
+<div id="ctx-menu">
+  <div class="ctx-item" onclick="ctxAction('front')">
+    <svg viewBox="0 0 24 24"><path d="M2 2h8v2H4v6H2zm12 0h8v8h-2V4h-6zM2 14h2v6h6v2H2zm18 0h2v8h-8v-2h6z"/></svg>
+    Traer al frente
+  </div>
+  <div class="ctx-item" onclick="ctxAction('back')">
+    <svg viewBox="0 0 24 24"><path d="M22 22H14v-2h6v-6h2zm-20 0v-8h2v6h6v2zm20-20v8h-2V4h-6V2zm-20 0h8v2H4v6H2z"/></svg>
+    Enviar atrás
+  </div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" onclick="ctxAction('crop')">
+    <svg viewBox="0 0 24 24"><path d="M17 15h2V7c0-1.1-.9-2-2-2H9v2h8v8zM7 17V1H5v4H1v2h4v10c0 1.1.9 2 2 2h10v4h2v-4h4v-2H7z"/></svg>
+    Recortar
+  </div>
+  <div class="ctx-item" onclick="ctxAction('flip')">
+    <svg viewBox="0 0 24 24"><path d="M15 21h2v-2h-2v2zm4-12h2V7h-2v2zM3 5v14c0 1.1.9 2 2 2h4v-2H5V5h4V3H5c-1.1 0-2 .9-2 2zm16-2v2h2c0-1.1-.9-2-2-2zm-8 20h2V1h-2v22zm8-6h2v-2h-2v2zM15 5h2V3h-2v2zm4 8h2v-2h-2v2z"/></svg>
+    Voltear horizontal
+  </div>
+  <div class="ctx-item" onclick="ctxAction('rotate')">
+    <svg viewBox="0 0 24 24"><path d="M12 6v3l4-4-4-4v3c-4.42 0-8 3.58-8 8 0 1.57.46 3.03 1.24 4.26L6.7 14.8c-.45-.83-.7-1.79-.7-2.8 0-3.31 2.69-6 6-6zm6.76 1.74L17.3 9.2c.44.84.7 1.79.7 2.8 0 3.31-2.69 6-6 6v-3l-4 4 4 4v-3c4.42 0 8-3.58 8-8 0-1.57-.46-3.03-1.24-4.26z"/></svg>
+    Rotar 90°
+  </div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item danger" onclick="ctxAction('delete')">
+    <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+    Eliminar
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- INPUTS OCULTOS -->
+<input type="file" id="file-input" multiple accept="image/*" style="display:none">
+
+<div id="canvas-container">
+  <canvas id="canvas"></canvas>
+</div>
+
+<script>
+  // ══════════════════════════════════════════
+  // SETUP CANVAS
+  // ══════════════════════════════════════════
+  const canvas = new fabric.Canvas('canvas', {
+    width: window.innerWidth,
+    height: window.innerHeight,
+    selection: true,
+    preserveObjectStacking: true,
+    fireRightClick: true,
+    stopContextMenu: true,
+  });
+
+  // ── Herramienta activa ──
+  let currentTool = 'select'; // select | pan | text | draw
+  let isPanning = false;
+  let lastPanPoint = null;
+
+  function setTool(tool) {
+    currentTool = tool;
+    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+    const btn = document.getElementById('tool-' + tool);
+    if (btn) btn.classList.add('active');
+
+    const container = document.getElementById('canvas-container');
+    container.classList.remove('text-mode', 'pan-mode');
+
+    canvas.isDrawingMode = false;
+    canvas.selection = true;
+
+    if (tool === 'pan') {
+      canvas.selection = false;
+      container.classList.add('pan-mode');
+    } else if (tool === 'text') {
+      container.classList.add('text-mode');
+      canvas.selection = false;
+    } else if (tool === 'draw') {
+      canvas.isDrawingMode = true;
+      canvas.freeDrawingBrush.width = 3;
+      canvas.freeDrawingBrush.color = '#222222';
+    }
+  }
+
+  // ══════════════════════════════════════════
+  // EVENTOS DE MOUSE
+  // ══════════════════════════════════════════
+
+  // ── Estado de pan ──
+  let rightClickMoved = false;      // distingue click-derecho-quiet vs arrastre
+  let rightClickDownPos = null;
+
+  canvas.on('mouse:down', function(opt) {
+    const e = opt.e;
+
+    // ── Pan: botón medio O herramienta pan ──
+    if (e.button === 1 || currentTool === 'pan') {
+      isPanning = true;
+      lastPanPoint = { x: e.clientX, y: e.clientY };
+      document.getElementById('canvas-container').classList.add('pan-mode');
+      canvas.setCursor('grabbing');
+      e.preventDefault();
+      return;
+    }
+
+    // ── Click derecho: puede ser pan O context-menu ──
+    if (e.button === 2) {
+      rightClickMoved = false;
+      rightClickDownPos = { x: e.clientX, y: e.clientY };
+      isPanning = true;
+      lastPanPoint = { x: e.clientX, y: e.clientY };
+      document.getElementById('canvas-container').classList.add('pan-mode');
+      canvas.setCursor('grabbing');
+      e.preventDefault();
+      return;
+    }
+
+    // ── Herramienta texto ──
+    if (currentTool === 'text') {
+      const pointer = canvas.getPointer(e);
+      const text = new fabric.Textbox('Escribe aquí...', {
+        left: pointer.x, top: pointer.y,
+        width: 220, fontSize: 18,
+        fontFamily: 'DM Sans', fill: '#222222',
+        editable: true,
+        cornerColor: '#0F62FE', cornerStyle: 'circle',
+        transparentCorners: false,
+      });
+      canvas.add(text);
+      canvas.setActiveObject(text);
+      text.enterEditing();
+      text.selectAll();
+      canvas.renderAll();
+      setTool('select');
+      saveState();
+    }
+
+    hideContextMenu();
+  });
+
+  canvas.on('mouse:move', function(opt) {
+    if (!isPanning || !lastPanPoint) return;
+    const e = opt.e;
+    const dx = e.clientX - lastPanPoint.x;
+    const dy = e.clientY - lastPanPoint.y;
+
+    // Marcar que el click-derecho se usó para arrastrar
+    if (e.buttons === 2 && rightClickDownPos) {
+      const dist = Math.hypot(e.clientX - rightClickDownPos.x, e.clientY - rightClickDownPos.y);
+      if (dist > 4) rightClickMoved = true;
+    }
+
+    canvas.relativePan(new fabric.Point(dx, dy));
+    lastPanPoint = { x: e.clientX, y: e.clientY };
+    updateZoomLabel();
+  });
+
+  canvas.on('mouse:up', function(opt) {
+    const e = opt.e;
+    const wasRightClick = e && e.button === 2;
+
+    isPanning = false;
+    lastPanPoint = null;
+
+    if (currentTool !== 'pan') {
+      document.getElementById('canvas-container').classList.remove('pan-mode');
+      canvas.setCursor('default');
+    }
+
+    // Si fue click-derecho SIN arrastrar → mostrar context menu
+    if (wasRightClick && !rightClickMoved) {
+      const target = canvas.findTarget(e);
+      if (target) {
+        canvas.setActiveObject(target);
+        canvas.renderAll();
+        showContextMenu(e.clientX, e.clientY);
+      }
+    }
+
+    rightClickDownPos = null;
+    rightClickMoved = false;
+    clearGuides();
+    saveState();
+  });
+
+  // Bloquear menú contextual nativo del browser sobre el canvas
+  document.getElementById('canvas-container').addEventListener('contextmenu', e => e.preventDefault());
+
+  // Space + drag para pan
+  let spaceDown = false;
+  document.addEventListener('keydown', ev => {
+    if (ev.code === 'Space' && currentTool === 'select' && !ev.target.isContentEditable) {
+      spaceDown = true;
+      document.getElementById('canvas-container').classList.add('pan-mode');
+    }
+    if (ev.key === 'Delete' || ev.key === 'Backspace') {
+      const activeObj = canvas.getActiveObject();
+      if (activeObj && !activeObj.isEditing) deleteSelected();
+    }
+  });
+  document.addEventListener('keyup', ev => {
+    if (ev.code === 'Space') {
+      spaceDown = false;
+      if (currentTool === 'select')
+        document.getElementById('canvas-container').classList.remove('pan-mode');
+    }
+  });
+
+  canvas.on('mouse:down:before', function(opt) {
+    if (spaceDown) {
+      isPanning = true;
+      lastPanPoint = { x: opt.e.clientX, y: opt.e.clientY };
+    }
+  });
+
+  // ══════════════════════════════════════════
+  // SNAP A GRILLA + SMART GUIDES
+  // ══════════════════════════════════════════
+
+  const GRID_SIZE   = 20;   // px en coordenadas de lienzo
+  const SNAP_THRESH = 8;    // px para snap a grilla
+  const GUIDE_THRESH = 14;  // px para activar guía entre objetos
+
+  // Líneas guía — canvas HTML2D superpuesto
+  const guideCanvas = document.createElement('canvas');
+  guideCanvas.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:10;';
+  guideCanvas.width  = window.innerWidth;
+  guideCanvas.height = window.innerHeight;
+  document.body.appendChild(guideCanvas);
+  const guideCtx = guideCanvas.getContext('2d');
+
+  window.addEventListener('resize', () => {
+    guideCanvas.width  = window.innerWidth;
+    guideCanvas.height = window.innerHeight;
+  });
+
+  let activeGuides = [];
+
+  function clearGuides() {
+    guideCtx.clearRect(0, 0, guideCanvas.width, guideCanvas.height);
+    activeGuides = [];
+  }
+
+  function drawGuides(lines) {
+    guideCtx.clearRect(0, 0, guideCanvas.width, guideCanvas.height);
+    if (!lines.length) return;
+
+    const vp  = canvas.viewportTransform;
+    const zoom = canvas.getZoom();
+
+    guideCtx.save();
+    guideCtx.strokeStyle = '#0F62FE';
+    guideCtx.lineWidth   = 1;
+    guideCtx.setLineDash([4, 3]);
+    guideCtx.globalAlpha = 0.8;
+
+    lines.forEach(({ type, value }) => {
+      guideCtx.beginPath();
+      if (type === 'v') {                      // vertical (x fijo)
+        const sx = value * zoom + vp[4];
+        guideCtx.moveTo(sx, 0);
+        guideCtx.lineTo(sx, guideCanvas.height);
+      } else {                                  // horizontal (y fijo)
+        const sy = value * zoom + vp[5];
+        guideCtx.moveTo(0, sy);
+        guideCtx.lineTo(guideCanvas.width, sy);
+      }
+      guideCtx.stroke();
+    });
+    guideCtx.restore();
+  }
+
+  // Snap: ajusta left/top al grid más cercano
+  function snapToGrid(val) {
+    const snapped = Math.round(val / GRID_SIZE) * GRID_SIZE;
+    return Math.abs(val - snapped) <= SNAP_THRESH ? snapped : val;
+  }
+
+  // Smart guides: devuelve corrección {dx, dy} y líneas a dibujar
+  function computeGuides(moving, others) {
+    const mL = moving.left;
+    const mT = moving.top;
+    const mR = mL + moving.getScaledWidth();
+    const mB = mT + moving.getScaledHeight();
+    const mCX = mL + moving.getScaledWidth()  / 2;
+    const mCY = mT + moving.getScaledHeight() / 2;
+
+    const lines = [];
+    let dx = 0, dy = 0;
+
+    others.forEach(o => {
+      const oL  = o.left;
+      const oT  = o.top;
+      const oR  = oL + o.getScaledWidth();
+      const oB  = oT + o.getScaledHeight();
+      const oCX = oL + o.getScaledWidth()  / 2;
+      const oCY = oT + o.getScaledHeight() / 2;
+
+      // ── Verticales (X) ──
+      const vChecks = [
+        { mv: mL,  ov: oL,  snap: d => { dx = d; } },
+        { mv: mL,  ov: oR,  snap: d => { dx = d; } },
+        { mv: mR,  ov: oR,  snap: d => { dx = d; } },
+        { mv: mR,  ov: oL,  snap: d => { dx = d; } },
+        { mv: mCX, ov: oCX, snap: d => { dx = d; } },
+      ];
+      vChecks.forEach(({ mv, ov, snap }) => {
+        if (Math.abs(mv - ov) < GUIDE_THRESH) {
+          snap(ov - mv);
+          lines.push({ type: 'v', value: ov });
+        }
+      });
+
+      // ── Horizontales (Y) ──
+      const hChecks = [
+        { mv: mT,  ov: oT,  snap: d => { dy = d; } },
+        { mv: mT,  ov: oB,  snap: d => { dy = d; } },
+        { mv: mB,  ov: oB,  snap: d => { dy = d; } },
+        { mv: mB,  ov: oT,  snap: d => { dy = d; } },
+        { mv: mCY, ov: oCY, snap: d => { dy = d; } },
+      ];
+      hChecks.forEach(({ mv, ov, snap }) => {
+        if (Math.abs(mv - ov) < GUIDE_THRESH) {
+          snap(ov - mv);
+          lines.push({ type: 'h', value: ov });
+        }
+      });
+    });
+
+    return { dx, dy, lines };
+  }
+
+  // ── Hook object:moving ──
+  canvas.on('object:moving', function(opt) {
+    const obj = opt.target;
+    const others = canvas.getObjects().filter(o => o !== obj && !o._isGuide);
+
+    // 1) Snap a grilla
+    let newLeft = snapToGrid(obj.left);
+    let newTop  = snapToGrid(obj.top);
+    obj.set({ left: newLeft, top: newTop });
+
+    // 2) Smart guides entre objetos
+    const { dx, dy, lines } = computeGuides(obj, others);
+    if (dx) obj.set('left', obj.left + dx);
+    if (dy) obj.set('top',  obj.top  + dy);
+
+    drawGuides(lines);
+    obj.setCoords();
+  });
+
+  // ── Hook object:scaling ──
+  canvas.on('object:scaling', function(opt) {
+    const obj = opt.target;
+    // Snap del borde derecho/inferior al grid
+    const snappedW = Math.round(obj.getScaledWidth()  / GRID_SIZE) * GRID_SIZE;
+    const snappedH = Math.round(obj.getScaledHeight() / GRID_SIZE) * GRID_SIZE;
+    if (obj.width  > 0) obj.scaleX = snappedW / obj.width;
+    if (obj.height > 0) obj.scaleY = snappedH / obj.height;
+    obj.setCoords();
+  });
+
+  canvas.on('object:modified', clearGuides);
+
+  // ── SCROLL → ZOOM ──
+  canvas.on('mouse:wheel', function(opt) {
+    const delta = opt.e.deltaY;
+    let zoom = canvas.getZoom();
+    zoom *= 0.999 ** delta;
+    zoom = Math.min(Math.max(zoom, 0.05), 20);
+    canvas.zoomToPoint({ x: opt.e.offsetX, y: opt.e.offsetY }, zoom);
+    opt.e.preventDefault();
+    opt.e.stopPropagation();
+    updateZoomLabel();
+  });
+
+  // ── PANEL PROPIEDADES ──
+  canvas.on('selection:created', updatePanel);
+  canvas.on('selection:updated', updatePanel);
+  canvas.on('selection:cleared', () => {
+    document.getElementById('obj-panel').classList.remove('visible');
+  });
+  canvas.on('object:modified', updatePanel);
+
+  function updatePanel() {
+    const obj = canvas.getActiveObject();
+    if (!obj) return;
+    document.getElementById('obj-panel').classList.add('visible');
+    document.getElementById('panel-w').textContent = Math.round(obj.getScaledWidth()) + 'px';
+    document.getElementById('panel-h').textContent = Math.round(obj.getScaledHeight()) + 'px';
+    document.getElementById('panel-a').textContent = Math.round(obj.angle) + '°';
+  }
+
+  // ══════════════════════════════════════════
+  // CARGAR IMÁGENES
+  // ══════════════════════════════════════════
+  document.getElementById('file-input').onchange = function(e) {
+    loadImages(Array.from(e.target.files));
+    this.value = '';
+  };
+
+  function loadImages(files) {
+    const cols = 4;
+    const spacing = 340;
+    const startX = 200;
+    const startY = 150;
+    let loaded = 0;
+    const existing = canvas.getObjects().filter(o => o.type === 'image').length;
+
+    files.forEach((file) => {
+      if (!file.type.startsWith('image/')) return;
+      const reader = new FileReader();
+      reader.onload = function(f) {
+        fabric.Image.fromURL(f.target.result, (img) => {
+          const idx = existing + loaded;
+          const col = idx % cols;
+          const row = Math.floor(idx / cols);
+          img.scaleToWidth(300);
+          img.set({
+            left: startX + col * spacing,
+            top: startY + row * spacing,
+            cornerColor: '#0F62FE',
+            cornerStyle: 'circle',
+            transparentCorners: false,
+            cornerSize: 10,
+            borderColor: '#0F62FE',
+            borderScaleFactor: 1.5,
+          });
+          canvas.add(img);
+          loaded++;
+          if (loaded === files.length) {
+            canvas.renderAll();
+            toast(`${loaded} foto${loaded > 1 ? 's' : ''} cargada${loaded > 1 ? 's' : ''}`);
+            saveState();
+          }
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // ── DRAG & DROP DESDE SISTEMA ──
+  const dropOverlay = document.getElementById('drop-overlay');
+  document.addEventListener('dragover', e => { e.preventDefault(); dropOverlay.classList.add('active'); });
+  document.addEventListener('dragleave', e => {
+    if (e.relatedTarget === null) dropOverlay.classList.remove('active');
+  });
+  document.addEventListener('drop', e => {
+    e.preventDefault();
+    dropOverlay.classList.remove('active');
+    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+    if (files.length) loadImages(files);
+  });
+
+  // ══════════════════════════════════════════
+  // STICKY NOTES
+  // ══════════════════════════════════════════
+  const STICKY_COLORS = ['#FFF176', '#B9F6CA', '#B3E5FC', '#F8BBD0', '#E1BEE7'];
+  let stickyColor = STICKY_COLORS[0];
+
+  function addStickyNote() {
+    const vp = canvas.viewportTransform;
+    const cx = (window.innerWidth / 2 - vp[4]) / canvas.getZoom();
+    const cy = (window.innerHeight / 2 - vp[5]) / canvas.getZoom();
+
+    const rect = new fabric.Rect({
+      width: 200, height: 180,
+      fill: stickyColor,
+      rx: 4, ry: 4,
+      shadow: new fabric.Shadow({ color: 'rgba(0,0,0,0.12)', blur: 10, offsetX: 2, offsetY: 4 }),
+    });
+
+    const text = new fabric.Textbox('Nota aquí...', {
+      width: 180, left: 10, top: 14,
+      fontSize: 14, fontFamily: 'DM Sans',
+      fill: '#333', editable: true,
+    });
+
+    const group = new fabric.Group([rect, text], {
+      left: cx - 100, top: cy - 90,
+      cornerColor: '#0F62FE',
+      cornerStyle: 'circle',
+      transparentCorners: false,
+      cornerSize: 9,
+    });
+
+    // Allow editing on double click
+    group.on('mousedblclick', function() {
+      canvas.remove(group);
+      rect.set({ left: group.left, top: group.top });
+      text.set({ left: group.left + 10, top: group.top + 14 });
+      canvas.add(rect);
+      canvas.add(text);
+      canvas.setActiveObject(text);
+      text.enterEditing();
+      canvas.renderAll();
+    });
+
+    canvas.add(group);
+    canvas.setActiveObject(group);
+    canvas.renderAll();
+    setTool('select');
+    saveState();
+  }
+
+  // ══════════════════════════════════════════
+  // EDICIÓN RÁPIDA
+  // ══════════════════════════════════════════
+  function rotateObj() {
+    const obj = canvas.getActiveObject();
+    if (!obj) return;
+    obj.rotate((obj.angle + 90) % 360);
+    canvas.renderAll(); updatePanel(); saveState();
+  }
+
+  function flipObjX() {
+    const obj = canvas.getActiveObject();
+    if (!obj) return;
+    obj.set('flipX', !obj.flipX);
+    canvas.renderAll(); saveState();
+  }
+
+  function bringToFront() {
+    const obj = canvas.getActiveObject();
+    if (!obj) return;
+    canvas.bringToFront(obj);
+    canvas.renderAll(); saveState();
+  }
+
+  function deleteSelected() {
+    const objs = canvas.getActiveObjects();
+    if (!objs.length) return;
+    objs.forEach(o => canvas.remove(o));
+    canvas.discardActiveObject();
+    canvas.renderAll();
+    document.getElementById('obj-panel').classList.remove('visible');
+    saveState();
+  }
+
+  // ══════════════════════════════════════════
+  // ORGANIZACIÓN
+  // ══════════════════════════════════════════
+  function arrangeGrid() {
+    const objs = canvas.getObjects().filter(o => o.type === 'image');
+    if (!objs.length) { toast('No hay fotos para organizar'); return; }
+    const cols = Math.ceil(Math.sqrt(objs.length));
+    const spacing = 340;
+    const startX = 100, startY = 100;
+    objs.forEach((img, i) => {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      img.set({ left: startX + col * spacing, top: startY + row * spacing });
+    });
+    canvas.renderAll(); saveState();
+    toast('Imágenes organizadas');
+    fitAll();
+  }
+
+  function fitAll() {
+    const objs = canvas.getObjects();
+    if (!objs.length) return;
+    const bounds = objs.reduce((b, o) => {
+      const r = o.getBoundingRect(true);
+      return {
+        left: Math.min(b.left, r.left),
+        top: Math.min(b.top, r.top),
+        right: Math.max(b.right, r.left + r.width),
+        bottom: Math.max(b.bottom, r.top + r.height),
+      };
+    }, { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity });
+
+    const padding = 80;
+    const W = window.innerWidth - padding * 2;
+    const H = window.innerHeight - 52 - padding * 2;
+    const scaleX = W / (bounds.right - bounds.left);
+    const scaleY = H / (bounds.bottom - bounds.top);
+    const zoom = Math.min(scaleX, scaleY, 1);
+
+    canvas.setZoom(zoom);
+    const vpX = padding - bounds.left * zoom;
+    const vpY = 52 + padding - bounds.top * zoom;
+    canvas.setViewportTransform([zoom, 0, 0, zoom, vpX, vpY]);
+    updateZoomLabel();
+  }
+
+  // ══════════════════════════════════════════
+  // EXPORTAR
+  // ══════════════════════════════════════════
+  function exportPNG() {
+    const objs = canvas.getObjects();
+    if (!objs.length) { toast('No hay contenido para exportar'); return; }
+    const multiplier = 2;
+    const dataURL = canvas.toDataURL({ format: 'png', multiplier });
+    const a = document.createElement('a');
+    const title = document.getElementById('board-title').textContent.trim() || 'pizarra';
+    a.download = title.replace(/\s+/g, '-').toLowerCase() + '.png';
+    a.href = dataURL;
+    a.click();
+    toast('Exportando imagen…');
+  }
+
+  // ══════════════════════════════════════════
+  // ZOOM
+  // ══════════════════════════════════════════
+  function updateZoomLabel() {
+    document.getElementById('zoom-label').textContent = Math.round(canvas.getZoom() * 100) + '%';
+  }
+
+  function zoomStep(delta) {
+    let zoom = canvas.getZoom() + delta;
+    zoom = Math.min(Math.max(zoom, 0.1), 10);
+    canvas.zoomToPoint({ x: window.innerWidth / 2, y: window.innerHeight / 2 }, zoom);
+    updateZoomLabel();
+  }
+
+  // ══════════════════════════════════════════
+  // CONTEXT MENU
+  // ══════════════════════════════════════════
+  const ctxMenu = document.getElementById('ctx-menu');
+
+  function showContextMenu(x, y) {
+    ctxMenu.style.left = x + 'px';
+    ctxMenu.style.top = y + 'px';
+    ctxMenu.classList.add('open');
+  }
+
+  function hideContextMenu() {
+    ctxMenu.classList.remove('open');
+  }
+
+  document.addEventListener('click', hideContextMenu);
+
+  function ctxAction(action) {
+    const obj = canvas.getActiveObject();
+    if (!obj) return;
+    if (action === 'front') { canvas.bringToFront(obj); }
+    else if (action === 'back') { canvas.sendToBack(obj); }
+    else if (action === 'flip') { obj.set('flipX', !obj.flipX); }
+    else if (action === 'rotate') { obj.rotate((obj.angle + 90) % 360); }
+    else if (action === 'crop') { hideContextMenu(); startCrop(); return; }
+    else if (action === 'delete') { deleteSelected(); }
+    canvas.renderAll(); saveState(); hideContextMenu();
+  }
+
+  // ══════════════════════════════════════════
+  // LIMPIAR
+  // ══════════════════════════════════════════
+  function clearCanvas() {
+    if (!confirm('¿Limpiar toda la pizarra? Esta acción no se puede deshacer.')) return;
+    canvas.clear();
+    canvas.setZoom(1);
+    canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+    localStorage.removeItem('frameboard-data');
+    updateZoomLabel();
+    toast('Pizarra limpiada');
+  }
+
+  // ══════════════════════════════════════════
+  // PERSISTENCIA
+  // ══════════════════════════════════════════
+  function saveState() {
+    try {
+      const json = JSON.stringify(canvas.toJSON(['cornerColor', 'cornerStyle', 'cornerSize', 'borderColor']));
+      localStorage.setItem('frameboard-data', json);
+      const title = document.getElementById('board-title').textContent;
+      localStorage.setItem('frameboard-title', title);
+    } catch(e) { /* storage full */ }
+  }
+
+  function loadState() {
+    const saved = localStorage.getItem('frameboard-data');
+    const title = localStorage.getItem('frameboard-title');
+    if (title) document.getElementById('board-title').textContent = title;
+    if (saved) {
+      canvas.loadFromJSON(saved, () => {
+        canvas.getObjects().forEach(obj => {
+          obj.set({
+            cornerColor: '#0F62FE',
+            cornerStyle: 'circle',
+            transparentCorners: false,
+            cornerSize: 10,
+            borderColor: '#0F62FE',
+          });
+        });
+        canvas.renderAll();
+      });
+    }
+  }
+
+  document.getElementById('board-title').addEventListener('blur', saveState);
+
+  // ══════════════════════════════════════════
+  // TOAST
+  // ══════════════════════════════════════════
+  let toastTimeout;
+  function toast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toastTimeout);
+    toastTimeout = setTimeout(() => el.classList.remove('show'), 2200);
+  }
+
+  // ══════════════════════════════════════════
+  // RESIZE
+  // ══════════════════════════════════════════
+  window.addEventListener('resize', () => {
+    canvas.setWidth(window.innerWidth);
+    canvas.setHeight(window.innerHeight);
+    canvas.renderAll();
+  });
+
+  // ══════════════════════════════════════════
+  // SERVICE WORKER
+  // ══════════════════════════════════════════
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  }
+
+  // ══════════════════════════════════════════
+  // RECORTE DE IMÁGENES
+  // ══════════════════════════════════════════
+  let cropTargetObj = null;      // fabric.Image being cropped
+  let cropOriginalSrc = null;    // original dataURL before any crop
+  let cropSel = { x: 0, y: 0, w: 0, h: 0 };
+  let cropDragging = false;
+  let cropStart = { x: 0, y: 0 };
+
+  function startCrop() {
+    const obj = canvas.getActiveObject();
+    if (!obj || obj.type !== 'image') {
+      toast('Selecciona una imagen para recortar');
+      return;
+    }
+    cropTargetObj = obj;
+
+    // Get the full pixel source (use element src, not scaled canvas)
+    const el = obj.getElement();
+    // Draw original image to offscreen canvas to get dataURL
+    const offscreen = document.createElement('canvas');
+    offscreen.width = el.naturalWidth || el.width;
+    offscreen.height = el.naturalHeight || el.height;
+    const ctx2 = offscreen.getContext('2d');
+    ctx2.drawImage(el, 0, 0);
+    cropOriginalSrc = offscreen.toDataURL();
+
+    const cropImg = document.getElementById('crop-img');
+    cropImg.src = cropOriginalSrc;
+    cropImg.onload = () => {
+      resetCropSelection();
+      document.getElementById('crop-modal').classList.add('open');
+    };
+  }
+
+  function resetCropSelection() {
+    const sel = document.getElementById('crop-selection');
+    sel.style.display = 'none';
+    cropSel = { x: 0, y: 0, w: 0, h: 0 };
+  }
+
+  // Crop drag logic
+  const cropContainer = document.getElementById('crop-container');
+
+  cropContainer.addEventListener('mousedown', function(e) {
+    const rect = document.getElementById('crop-img').getBoundingClientRect();
+    cropStart = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    cropDragging = true;
+    const sel = document.getElementById('crop-selection');
+    sel.style.display = 'block';
+    sel.style.left = cropStart.x + 'px';
+    sel.style.top = cropStart.y + 'px';
+    sel.style.width = '0';
+    sel.style.height = '0';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', function(e) {
+    if (!cropDragging) return;
+    const rect = document.getElementById('crop-img').getBoundingClientRect();
+    const curX = Math.min(Math.max(e.clientX - rect.left, 0), rect.width);
+    const curY = Math.min(Math.max(e.clientY - rect.top, 0), rect.height);
+
+    const x = Math.min(curX, cropStart.x);
+    const y = Math.min(curY, cropStart.y);
+    const w = Math.abs(curX - cropStart.x);
+    const h = Math.abs(curY - cropStart.y);
+
+    cropSel = { x, y, w, h, displayW: rect.width, displayH: rect.height };
+
+    const sel = document.getElementById('crop-selection');
+    sel.style.left = x + 'px';
+    sel.style.top = y + 'px';
+    sel.style.width = w + 'px';
+    sel.style.height = h + 'px';
+  });
+
+  document.addEventListener('mouseup', function() {
+    cropDragging = false;
+  });
+
+  // Touch support for crop
+  cropContainer.addEventListener('touchstart', function(e) {
+    const t = e.touches[0];
+    const rect = document.getElementById('crop-img').getBoundingClientRect();
+    cropStart = { x: t.clientX - rect.left, y: t.clientY - rect.top };
+    cropDragging = true;
+    const sel = document.getElementById('crop-selection');
+    sel.style.display = 'block';
+    sel.style.left = cropStart.x + 'px';
+    sel.style.top = cropStart.y + 'px';
+    sel.style.width = '0'; sel.style.height = '0';
+    e.preventDefault();
+  }, { passive: false });
+
+  document.addEventListener('touchmove', function(e) {
+    if (!cropDragging) return;
+    const t = e.touches[0];
+    const rect = document.getElementById('crop-img').getBoundingClientRect();
+    const curX = Math.min(Math.max(t.clientX - rect.left, 0), rect.width);
+    const curY = Math.min(Math.max(t.clientY - rect.top, 0), rect.height);
+    const x = Math.min(curX, cropStart.x);
+    const y = Math.min(curY, cropStart.y);
+    const w = Math.abs(curX - cropStart.x);
+    const h = Math.abs(curY - cropStart.y);
+    cropSel = { x, y, w, h, displayW: rect.width, displayH: rect.height };
+    const sel = document.getElementById('crop-selection');
+    sel.style.left = x + 'px'; sel.style.top = y + 'px';
+    sel.style.width = w + 'px'; sel.style.height = h + 'px';
+  });
+
+  document.addEventListener('touchend', () => { cropDragging = false; });
+
+  function applyCrop() {
+    if (!cropSel.w || !cropSel.h || cropSel.w < 5 || cropSel.h < 5) {
+      toast('Dibuja un área de recorte primero');
+      return;
+    }
+
+    const cropImg = document.getElementById('crop-img');
+    const displayW = cropImg.getBoundingClientRect().width;
+    const displayH = cropImg.getBoundingClientRect().height;
+    const naturalW = cropImg.naturalWidth;
+    const naturalH = cropImg.naturalHeight;
+
+    // Scale selection from display coords to natural image coords
+    const scaleX = naturalW / displayW;
+    const scaleY = naturalH / displayH;
+
+    const sx = Math.round(cropSel.x * scaleX);
+    const sy = Math.round(cropSel.y * scaleY);
+    const sw = Math.round(cropSel.w * scaleX);
+    const sh = Math.round(cropSel.h * scaleY);
+
+    // Draw cropped region to offscreen canvas
+    const offscreen = document.createElement('canvas');
+    offscreen.width = sw;
+    offscreen.height = sh;
+    const ctx2 = offscreen.getContext('2d');
+    const tempImg = new Image();
+    tempImg.onload = function() {
+      ctx2.drawImage(tempImg, sx, sy, sw, sh, 0, 0, sw, sh);
+      const croppedDataURL = offscreen.toDataURL('image/png');
+
+      // Replace fabric image element with cropped version
+      fabric.Image.fromURL(croppedDataURL, function(newImg) {
+        const obj = cropTargetObj;
+        const oldLeft = obj.left;
+        const oldTop = obj.top;
+        const oldAngle = obj.angle;
+        const oldScaleX = obj.scaleX;
+        const oldScaleY = obj.scaleY;
+
+        newImg.set({
+          left: oldLeft, top: oldTop,
+          angle: oldAngle,
+          scaleX: oldScaleX, scaleY: oldScaleY,
+          cornerColor: '#0F62FE',
+          cornerStyle: 'circle',
+          transparentCorners: false,
+          cornerSize: 10,
+          borderColor: '#0F62FE',
+          borderScaleFactor: 1.5,
+        });
+
+        canvas.remove(obj);
+        canvas.add(newImg);
+        canvas.setActiveObject(newImg);
+        canvas.renderAll();
+        saveState();
+        closeCropModal();
+        toast('Recorte aplicado');
+      });
+    };
+    tempImg.src = cropOriginalSrc;
+  }
+
+  function closeCropModal() {
+    document.getElementById('crop-modal').classList.remove('open');
+    resetCropSelection();
+    cropTargetObj = null;
+    cropOriginalSrc = null;
+  }
+
+  // Close modal on Escape
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && document.getElementById('crop-modal').classList.contains('open')) {
+      closeCropModal();
+    }
+  });
+
+  // ── INIT ──
+  loadState();
+  updateZoomLabel();
+</script>
+</body>
+</html>
