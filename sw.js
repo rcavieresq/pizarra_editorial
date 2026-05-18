@@ -6,7 +6,7 @@ const assets = [
   './',
   './dashboard.html',
   './index.html',
-  './manifest.json'
+  './manifest.json',
   './icon-192.png',
   './icon-512.png'
 ];
