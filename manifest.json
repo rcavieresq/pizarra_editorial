@@ -1,7 +1,7 @@
 {
   "name": "Pizarra Editorial",
   "short_name": "Pizarra",
-  "start_url": "./dashboard.html",  <-- ESTO ES LO MÁS IMPORTANTE
+  "start_url": "./dashboard.html",
   "display": "standalone",
   "background_color": "#f3f2f1",
   "theme_color": "#222222",
